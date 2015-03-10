@@ -27,9 +27,7 @@ sub _handle {
     my $req = Plack::Request->new($env);
     my $datetime = $req->header('Accept-Datetime');
 
-    my $memento = $self->_handler->get_memento($uri, $datetime) || return $self->_not_found;    
-
-    my ($memento_uri) = @$memento;
+    my $memento_uri = $self->_handler->get_memento($uri, $datetime) || return $self->_not_found;    
 
     [ 302,
         [
