@@ -19,17 +19,17 @@ sub _handle {
     my($self, $env) = @_;
 
     my $path_match = $self->path or return;
-    my $path = $env->{PATH_INFO};
+    my $uri = $env->{PATH_INFO};
 
-    $path =~ s/$path_match// or return;
+    $uri =~ s/$path_match// or return;
 
-    my $mementos = $self->_handler->get_all_mementos($path);
-    use Data::Dumper;
+    my $mementos = $self->_handler->get_all_mementos($uri);
+
     [ 200,
         [
             'Content-Type' => 'application/link-format',
         ],
-        [ Dumper($mementos) ],
+        [ $self->_to_link_format(@$mementos) ],
     ];
 }
 
@@ -39,6 +39,15 @@ sub _handler {
         my $class = Plack::Util::load_class($self->handler, 'Plack::Middleware::Memento::Handler');
         $class->new($self->options || {});
     };
+}
+
+sub _to_link_format {
+    my ($self, @mementos) = @_;
+    my $body = join(",\n", map {
+        my ($uri, $datetime) = @$_;
+        qq|<$uri>; rel="memento"; datetime="$datetime"|;
+    } @mementos);
+    "$body\n";
 }
 
 1;
