@@ -34,7 +34,7 @@ sub _handle {
             'Vary' => 'accept-datetime',
             'Location' => $memento_uri,
             'Content-Type' => 'text/plain; charset=UTF-8',
-            'Link' => qq|<$uri>; rel="original",<>; rel="original timegate", <>; rel="timemap"|,
+            'Link' => qq|<$uri>; rel="original",<>; rel="timegate", <>; rel="timemap"|,
         ],
         [ ],
     ];
