@@ -30,8 +30,8 @@ sub _handle {
             'Content-Type' => 'application/link-format',
         ],
         [   
-            qq|<$uri>; rel="original",|,
-            qq|<>; rel="self"; type="application/link-format",|,
+            qq|<$uri>; rel="original",\n|,
+            qq|<>; rel="self"; type="application/link-format",\n|,
             $self->_to_link_format(@$mementos),
         ],
     ];
