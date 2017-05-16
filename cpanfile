@@ -1,6 +1,9 @@
 requires 'perl', '5.008005';
 
-# requires 'Some::Module', 'VERSION';
+requires 'DateTime::Format::Mail', '0';
+requires 'Plack', '1.0042';
+requires 'Role::Tiny', '0';
+requires 'namespace::clean', '0';
 
 on test => sub {
     requires 'Test::More', '0.96';

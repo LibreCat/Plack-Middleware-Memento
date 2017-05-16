@@ -2,7 +2,9 @@ use strict;
 use Test::More;
 use Plack::Middleware::Memento;
 
-# replace with the actual test
-ok 1;
+BEGIN {
+    $pkg = 'Plack::Middleware::Memento';
+    use_ok $pkg;
+}
 
 done_testing;
