@@ -1,6 +1,7 @@
 requires 'perl', '5.008005';
 
-requires 'DateTime::Format::Mail', '0';
+requires 'DateTime', '0';
+requires 'DateTime::Format::HTTP', '0';
 requires 'Plack', '1.0042';
 requires 'Role::Tiny', '0';
 requires 'namespace::clean', '0';

@@ -7,7 +7,8 @@ our $VERSION = '0.01';
 
 use Plack::Request;
 use Plack::Util;
-use DateTime::Format::Mail;
+use DateTime;
+use DateTime::Format::HTTP;
 use parent 'Plack::Middleware';
 use namespace::clean;
 
@@ -39,15 +40,30 @@ sub _handler {
     };
 }
 
-sub _build__rfc2822 {
-    $_[0]->{_rfc2822} ||= DateTime::Format::Mail->new;
-}
-
 sub call {
     my ($self, $env) = @_;
     $self->_handle_timegate_request($env) ||
         $self->_handle_timemap_request($env) ||
-        $self->app->($env);
+        $self->_wrap_request($env);
+}
+
+sub _wrap_request {
+    my ($self, $env) = @_;
+    my $res = $self->app->($env);
+    my $req = Plack::Request->new($env);
+    if (my ($uri_r, $dt) = $self->_handler->wrap_memento_request($req)) {
+        my @links = (
+            $self->_original_link($uri_r),
+            $self->_timegate_link($req->base, $uri_r),
+            $self->_timemap_link($req->base, $uri_r, 'timemap'),
+        );
+        Plack::Util::header_set($res->[1], 'Memento-Datetime', DateTime::Format::HTTP->format_datetime($dt));
+        Plack::Util::header_push($res->[1], 'Link', join(",", @links));
+    }
+    if ($self->_handler->wrap_original_resource_request($req)) {
+        Plack::Util::header_push($res->[1], 'Link', $self->_timegate_link($req->base, $req->uri->as_string));
+    }
+    $res;
 }
 
 sub _handle_timegate_request {
@@ -55,21 +71,30 @@ sub _handle_timegate_request {
 
     my $prefix = $self->timegate_path;
     my $uri_r = $env->{PATH_INFO};
-    $uri_r =~ s/^${prefix}// or return;
-    $uri_r || return $self->_not_found;
+    $uri_r =~ s|^${prefix}/|| or return;
 
     my $req = Plack::Request->new($env);
 
     my $mementos = $self->_handler->get_all_mementos($uri_r, $req) ||
         return $self->_not_found;
 
-    my $dt = $self->_rfc2822->parse_datetime($req->header('Accept-Datetime'));
+    $mementos = [sort { DateTime->compare($a->[1], $b->[1]) } @$mementos];
 
-    for my $mem (@$mementos) {
-        $mem->[2] = abs($mem->[1]->epoch - $dt->epoch);
+    my $closest_mem;
+
+    if (defined(my $date = $req->header('Accept-Datetime'))) {
+        my $dt = eval { DateTime::Format::HTTP->parse_datetime($date) } or
+            return $self->_bad_request;
+
+        my ($closest) = sort { $a->[1] <=> $b->[1] } map {
+            my $diff = abs($_->[1]->epoch - $dt->epoch);
+            [$_, $diff];
+        } @$mementos;
+
+        $closest_mem = $closest->[0];
+    } else {
+        $closest_mem = $mementos->[-1];
     }
-
-    my ($closest_mem) = sort { $a->[2] <=> $b->[2] } @$mementos;
 
     my @links = (
         $self->_original_link($uri_r),
@@ -95,9 +120,7 @@ sub _handle_timegate_request {
             'Vary' => 'accept-datetime',
             'Location' => $closest_mem->[0],
             'Content-Type' => 'text/plain; charset=UTF-8',
-            'Connection' => 'close',
-            'Content-Length' => '0',
-            'Link' => join(",\n", @links),
+            'Link' => join(",", @links),
         ],
         [ ],
     ];
@@ -108,13 +131,14 @@ sub _handle_timemap_request {
 
     my $prefix = $self->timemap_path;
     my $uri_r = $env->{PATH_INFO};
-    $uri_r =~ s/^${prefix}// or return;
-    $uri_r || return $self->_not_found;
+    $uri_r =~ s|^${prefix}/|| or return;
 
     my $req = Plack::Request->new($env);
 
     my $mementos = $self->_handler->get_all_mementos($uri_r, $req) ||
         return $self->_not_found;
+
+    $mementos = [sort { DateTime->compare($a->[1], $b->[1]) } @$mementos];
 
     my @links = (
         $self->_original_link($uri_r),
@@ -149,6 +173,11 @@ sub _not_found {
     [ 404, [ 'Content-Type' => 'text/plain; charset=UTF-8' ], [] ];
 }
 
+sub _bad_request {
+    my ($self) = @_;
+    [ 400, [ 'Content-Type' => 'text/plain; charset=UTF-8' ], [] ];
+}
+
 sub _original_link {
     my ($self, $uri_r) = @_;
     qq|<$uri_r>; rel="original"|;
@@ -156,22 +185,28 @@ sub _original_link {
 
 sub _timemap_link {
     my ($self, $base_url, $uri_r, $rel, $mementos) = @_;
-    my $uri_t = join($base_url, $self->timemap_path, $uri_r);
-    my $from = $self->rfc2822->format_datetime($mementos->[0]->[1]);
-    my $until = $self->rfc2822->format_datetime($mementos->[-1]->[1]);
-    qq|<$uri_t>; rel="$rel"; type="application/link-format"; from="$from"; until="$until"|;
+    $base_url->path(join('/', $self->timemap_path, $uri_r));
+    my $uri_t = $base_url->canonical->as_string;
+    my $link = qq|<$uri_t>; rel="$rel"; type="application/link-format"|;
+    if ($mementos) {
+        my $from = DateTime::Format::HTTP->format_datetime($mementos->[0]->[1]);
+        my $until = DateTime::Format::HTTP->format_datetime($mementos->[-1]->[1]);
+        $link .= qq|; from="$from"; until="$until"|;
+    }
+    $link;
 }
 
 sub _timegate_link {
     my ($self, $base_url, $uri_r) = @_;
-    my $uri_t = join($base_url, $self->timegate_path, $uri_r);
-    qq|<$uri_t>; rel="timegate"|;
+    $base_url->path(join('/', $self->timegate_path, $uri_r));
+    my $uri_g = $base_url->canonical->as_string;
+    qq|<$uri_g>; rel="timegate"|;
 }
 
 sub _memento_link {
     my ($self, $mem, $rel) = @_;
     my $uri_m = $mem->[0];
-    my $datetime = $self->rfc2822->format_datetime($mem->[1]);
+    my $datetime = DateTime::Format::HTTP->format_datetime($mem->[1]);
     qq|<$uri_m>; rel="$rel"; datetime="$datetime"|;
 }
 

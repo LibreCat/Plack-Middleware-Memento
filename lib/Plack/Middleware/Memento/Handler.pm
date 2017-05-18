@@ -9,4 +9,12 @@ use namespace::clean;
 
 requires 'get_all_mementos';
 
+sub wrap_original_resource_request {
+    return;
+}
+
+sub wrap_memento_request {
+    return;
+}
+
 1;
