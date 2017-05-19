@@ -1,3 +1,4 @@
+/.tidyall.d
 .DS_Store
 /Plack-Middleware-Memento-*
 /.build
