@@ -13,12 +13,12 @@ my %module_build_args = (
   "configure_requires" => {
     "Module::Build" => "0.28"
   },
-  "dist_abstract" => "Base role and interface for Plack::Middleware::Memento handlers",
+  "dist_abstract" => "Enable the Memento protocol",
   "dist_author" => [
     "Nicolas Steenlant <nicolas.steenlant\@ugent.be>"
   ],
   "dist_name" => "Plack-Middleware-Memento",
-  "dist_version" => "0.01",
+  "dist_version" => "0.0101",
   "license" => "perl",
   "module_name" => "Plack::Middleware::Memento",
   "recursive_test_files" => 1,

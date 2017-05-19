@@ -1,6 +1,19 @@
 # NAME
 
-Plack::Middleware::Memento::Handler - Base role and interface for Plack::Middleware::Memento handlers
+Plack::Middleware::Memento - Enable the Memento protocol
+
+# SYNOPSIS
+
+    use Plack::Builder;
+    use Plack::App::Catmandu::Bag;
+
+    builder {
+        enable 'Memento', handler => 'Catmandu::Bag', store => 'authority', bag => 'person';
+        Plack::App::Catmandu::Bag->new(
+            store => 'authority',
+            bag => 'person',
+        )->to_app;
+    };
 
 # DESCRIPTION
 
