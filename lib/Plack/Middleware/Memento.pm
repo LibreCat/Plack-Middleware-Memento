@@ -3,7 +3,7 @@ package Plack::Middleware::Memento;
 use strict;
 use warnings;
 
-our $VERSION = '0.0101';
+our $VERSION = '0.0102';
 
 use Plack::Request;
 use Plack::Util;
