@@ -45,6 +45,7 @@ sub _handler {
 
 sub call {
     my ($self, $env) = @_;
+    return $self->app->($env) unless $env->{REQUEST_METHOD} =~ /GET|HEAD/;
     $self->_handle_timegate_request($env)
         || $self->_handle_timemap_request($env)
         || $self->_wrap_request($env);
